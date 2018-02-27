@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Whats on your Pi!</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <script type="text/javascript">
+    var conn;
+    var loginPrompt = false;
+    piModels = {
+      "0002": "Model B Rev 1",
+      "0003": "Model B Rev 1",
+      "0004": "Model B Rev 2",
+      "0005": "Model B Rev 2",
+      "0006": "Model B Rev 2",
+      "0007": "Model A",
+      "0008": "Model A",
+      "0009": "Model A",
+      "000d": "Model B Rev 2",
+      "000e": "Model B Rev 2",
+      "000f": "Model B Rev 2",
+      "0010": "Model B+",
+      "0013": "Model B+",
+      "900032": "Model B+",
+      "0011": "Compute Module",
+      "0014": "Compute Module",
+      "0012": "Model A+",
+      "0015": "Model A+",
+      "a01041": "Pi 2 MOdel B v1.1",
+      "A21041": "Pi 2 Model B V1.1",
+      "a22042": "Pi 2 MOdel B v1.2",
+      "900092": "Pi Zero v1.2",
+      "900093": "Pi Zero v1.3",
+      "9000C1": "Pi Zero W",
+      "a02082": "Pi 3 Model B",
+      "a22082": "Pi 3 Model B"
+    }
+
+    window.onload = function() {
+      var ws = false;
+      var msg = document.getElementById("msg");
+      var log = document.getElementById("log");
+      state = document.getElementById("status");
+  
+      if(window.WebSocket === undefined) {
+        state.innerHTML = "sockets not supported"
+        state.className = "fail";
+      }
+      else {
+        if(conn === undefined) {
+          var arr = window.location.href.split("/");
+  
+          //connect to a websocket endpoint
+          conn = new WebSocket("ws://" + arr[2] + "/ws");
+          //console.log(conn);
+  
+          conn.onmessage = function(evt) { onMessage(evt) };
+        //   conn.onopen = function(evt) { onOpen(evt) };
+          conn.onclose = function(evt) { onClose(evt) };
+  
+        }
+      }
+  
+      function onClose(evt) {
+        state.className = "fail";
+        state.innerHTML = "Not connected";
+      }
+  
+    //   function onOpen(evt) {
+    //     state.className = "success";
+    //     state.innerHTML = "Connected to server";
+    //   }
+  
+      function appendLog(item) {
+        var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+        log.appendChild(item);
+        if (doScroll) {
+            log.scrollTop = log.scrollHeight - log.clientHeight;
+        }
+      }
+  
+  
+      document.getElementById("form").onsubmit = function() {
+        if(!conn) {
+          return false;
+        }
+  
+        if(!msg.value) {
+          return false;
+        }
+      }
+  
+      $("#check").click(function() {
+          var myObject = {};
+          myObject.ipaddress = $("#ip").val();
+          myObject.username = $("#username").val();
+          myObject.password = $("#password").val();
+          myObject.command = "cpuinfo";
+          
+          if(conn) {
+              conn.send(JSON.stringify(myObject));
+          }
+      })
+
+      $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        var myObject = {};
+        myObject.ipaddress = $("#ip").val();
+        myObject.username = $("#username").val();
+        myObject.password = $("#password").val();
+        var tabName = $(e.target).attr("href");
+        
+        switch(tabName) {
+          case "#cpu":
+            myObject.command = "cpuinfo";
+            break;
+
+          case "#memory":
+          myObject.command = "memory";
+            break;
+          
+          case "#networking":
+          myObject.command = "networking";
+            break;
+          
+          case "#gpio":
+          myObject.command = "gpio";
+            break;
+
+          case "#disk":
+          myObject.command = "disk";
+            break;
+        }
+        console.log(JSON.stringify(myObject));
+        conn.send(JSON.stringify(myObject));
+      })
+
+      //Print the cpu info to the textarea
+      function onMessage(evt) {
+        var msg =  $("#cpu");
+        msg.val("");  
+        var messages = evt.data.split('\n');
+//        console.log(messages);
+
+        for (var i = 0; i < messages.length; i++) {
+          msg.val(msg.val() + messages[i] + "\n");
+          if (messages[i].indexOf("Revision") >= 0 ) {
+             var t= messages[i].split(":")[1];
+             t = t.trim()
+             $("#model").text(piModels[t]); 
+          }
+        }
+      };
+    }
+  </script>
+  
+
+</head>
+<body>
+
+<div class="container">
+  <h2>What Pi!</h2>
+  <p>A utility to check whats on your Raspberry Pi</p>
+
+  <ul class="nav nav-tabs">
+    <li class="active"><a data-toggle="tab" href="#cpu">CPU Info</a></li>
+    <li><a data-toggle="tab" href="#memory">Memory</a></li>
+    <li><a data-toggle="tab" href="#networking">Networking</a></li>
+    <li><a data-toggle="tab" href="#gpio">GPIO</a></li>
+    <li><a data-toggle="tab" href="#disk">Disk</a></li>
+  </ul>
+
+  <div class="tab-content">
+    <div id="home" class="tab-pane fade in active">
+      <div class="col-6">
+        <h3>MODEL:&nbsp;<span id="model"></span></h3>
+        </div>
+      <div class="col-6">    
+        
+      </div>
+
+    <div class="row">
+        <form id="form" autocomplete="off">
+              <div class="row">
+                  <div class="col-6">
+                      <textarea class="form-control" width="80%" id="cpu" rows = "20"></textarea>
+                  </div>
+                  <p></p>
+                  <div class="col-3">
+                      IP Address: <input type="text" id="ip" size="20">
+                      Username: <input type="text" id="username" size="20">
+                      Password: <input type="password" id="password" size="20">
+                      <button type="button" id="check" class="btn btn-primary">Check</button>
+                  </div>
+              </div>
+        </form>
+    </div>
+
+
+
+    </div>
+    <div id="menu1" class="tab-pane fade">
+      <h3>Memory</h3>
+      <p></p>
+    </div>
+
+    <div id="menu2" class="tab-pane fade">
+      <h3>Networking</h3>
+      <p></p>
+    </div>
+
+    <div id="menu3" class="tab-pane fade">
+      <h3>General Purpose Input/Output</h3>
+      <p></p>
+    </div>
+
+    <div id="menu4" class="tab-pane fade">
+        <h3>Disk Usage</h3>
+        <p></p>
+      </div>
+    </div>
+</div>
+
+</body>
+</html>
